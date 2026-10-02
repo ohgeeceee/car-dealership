@@ -8,11 +8,15 @@ import {
   IconSettings, IconSparkles, IconUsersGroup, IconWorldWww, IconX, IconDotsVertical,
 } from '@tabler/icons-react';
 
+const BASE_PATH = import.meta.env.BASE_URL;
+const appPath = (path = '') => path ? `${BASE_PATH}${path.replace(/^\/+/, '')}/` : BASE_PATH;
+const assetPath = (path) => `${BASE_PATH}assets/${path}`;
+
 const inventory = [
-  { id: 'ST-2041', name: '2017 Chevrolet Silverado 1500 LT', price: 21900, mileage: '92k mi', photo: '/assets/vehicle-silverado.jpg', badge: 'Just in' },
-  { id: 'ST-2038', name: '2019 Jeep Cherokee Limited', price: 16400, mileage: '88k mi', photo: '/assets/vehicle-cherokee.jpg', badge: 'Clean title' },
-  { id: 'ST-2035', name: '2016 Toyota Camry XLE', price: 14900, mileage: '123k mi', photo: '/assets/vehicle-camry.jpg', badge: 'Great value' },
-  { id: 'ST-2031', name: '2019 RAM 1500 Express', price: 24900, mileage: '81k mi', photo: '/assets/vehicle-ram.jpg', badge: '4×4' },
+  { id: 'ST-2041', name: '2017 Chevrolet Silverado 1500 LT', price: 21900, mileage: '92k mi', photo: assetPath('vehicle-silverado.jpg'), badge: 'Just in' },
+  { id: 'ST-2038', name: '2019 Jeep Cherokee Limited', price: 16400, mileage: '88k mi', photo: assetPath('vehicle-cherokee.jpg'), badge: 'Clean title' },
+  { id: 'ST-2035', name: '2016 Toyota Camry XLE', price: 14900, mileage: '123k mi', photo: assetPath('vehicle-camry.jpg'), badge: 'Great value' },
+  { id: 'ST-2031', name: '2019 RAM 1500 Express', price: 24900, mileage: '81k mi', photo: assetPath('vehicle-ram.jpg'), badge: '4×4' },
 ];
 
 const initialLeads = [
@@ -55,7 +59,7 @@ const plans = [
 const stages = ['New Inquiry', 'Contacted', 'Appointment Set', 'Sold'];
 
 function Brand({ compact = false }) {
-  return <a className={`brand ${compact ? 'brand-compact' : ''}`} href="/" aria-label="Car Guy Portal home">
+  return <a className={`brand ${compact ? 'brand-compact' : ''}`} href={appPath()} aria-label="Car Guy Portal home">
     <span className="brand-icon"><IconCar size={24} stroke={1.8} /></span>
     <span>CAR GUY <b>PORTAL</b></span>
   </a>;
@@ -72,8 +76,8 @@ function MarketingHeader() {
       <nav className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Main navigation">
         <a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a>
         <a href="#packages" onClick={() => setMenuOpen(false)}>Packages</a>
-        <a href="/demo">Live demo <span className="nav-dot" /></a>
-        <a href="/portal" className="signin-link" onClick={() => setMenuOpen(false)}>Dealer portal <IconArrowUpRight size={15} /></a>
+        <a href={appPath('demo')}>Live demo <span className="nav-dot" /></a>
+        <a href={appPath('portal')} className="signin-link" onClick={() => setMenuOpen(false)}>Dealer portal <IconArrowUpRight size={15} /></a>
       </nav>
     </div>
   </header>;
@@ -131,7 +135,7 @@ function PricingCard({ plan }) {
     <p className="plan-copy">{plan.copy}</p>
     <p className="plan-price"><strong>{plan.price}</strong><span>/ month</span></p>
     <p className="price-note">Sample pricing · adjust before launch</p>
-    <a className={plan.popular ? 'button button-gold button-wide' : 'button button-outline button-wide'} href={`/demo?plan=${encodeURIComponent(plan.name.toLowerCase().replaceAll(' ', '-'))}`}>Explore this package <IconArrowRight size={16} /></a>
+    <a className={plan.popular ? 'button button-gold button-wide' : 'button button-outline button-wide'} href={`${appPath('demo')}?plan=${encodeURIComponent(plan.name.toLowerCase().replaceAll(' ', '-'))}`}>Explore this package <IconArrowRight size={16} /></a>
     <div className="plan-divider" />
     <p className="feature-caption">INCLUDED</p>
     <ul>{plan.features.map((feature) => <li key={feature}><IconCheck size={16} />{feature}</li>)}</ul>
@@ -150,7 +154,7 @@ function MarketingSite() {
     <MarketingHeader />
     <main>
       <section className="hero" aria-labelledby="hero-title">
-        <img className="hero-photo" src="/assets/dealer-hero.png" alt="A pickup parked at an independent dealership at dusk" />
+        <img className="hero-photo" src={assetPath('dealer-hero.png')} alt="A pickup parked at an independent dealership at dusk" />
         <div className="hero-shade" />
         <div className="hero-inner">
           <div className="hero-copy">
@@ -158,7 +162,7 @@ function MarketingSite() {
             <h1 id="hero-title">Everything<br />behind the <em>sale.</em></h1>
             <p className="hero-lede">Your inventory, leads, and dealership operations — finally working together, from first click to signed deal.</p>
             <div className="hero-actions">
-              <a href="/demo" className="button button-gold">Explore the demo <IconArrowRight size={17} /></a>
+              <a href={appPath('demo')} className="button button-gold">Explore the demo <IconArrowRight size={17} /></a>
               <a href="#packages" className="button button-glass">See packages <IconChevronRight size={16} /></a>
             </div>
             <div className="hero-modules" aria-label="Three connected product modules">
@@ -214,7 +218,7 @@ function MarketingSite() {
 
       <section className="demo-band">
         <div className="demo-band-inner">
-          <div><p className="eyebrow"><span /> NO SALES PITCH REQUIRED</p><h2>Take the keys.<br /><em>Click around.</em></h2><p>Try the sales desk, browse sample inventory, or switch over to the dealer portal. It’s a demo workspace — no sign-in needed.</p><a href="/demo" className="button button-gold">Open the live demo <IconArrowRight size={17} /></a></div>
+          <div><p className="eyebrow"><span /> NO SALES PITCH REQUIRED</p><h2>Take the keys.<br /><em>Click around.</em></h2><p>Try the sales desk, browse sample inventory, or switch over to the dealer portal. It’s a demo workspace — no sign-in needed.</p><a href={appPath('demo')} className="button button-gold">Open the live demo <IconArrowRight size={17} /></a></div>
           <div className="demo-preview" aria-label="Sample dealer dashboard preview">
             <div className="demo-preview-head"><span><IconLayoutDashboard size={16} /> Sales Desk</span><span className="demo-pill"><i /> LIVE DEMO</span></div>
             <div className="demo-preview-numbers"><div><small>Open leads</small><b>24</b><span>↑ 12% this month</span></div><div><small>Appointments</small><b>08</b><span>Today’s schedule</span></div><div><small>Inventory</small><b>48</b><span>3 need attention</span></div></div>
@@ -233,7 +237,7 @@ function MarketingSite() {
       </section>
 
       <section className="closing-cta">
-        <div><p className="eyebrow"><span /> YOUR NEXT DEAL STARTS HERE</p><h2>Bring the whole<br />lot together.</h2><p>Give the demo a spin. See how your dealership could run with the right tools in one place.</p><a href="/demo" className="button button-gold">Explore the demo <IconArrowRight size={17} /></a></div>
+        <div><p className="eyebrow"><span /> YOUR NEXT DEAL STARTS HERE</p><h2>Bring the whole<br />lot together.</h2><p>Give the demo a spin. See how your dealership could run with the right tools in one place.</p><a href={appPath('demo')} className="button button-gold">Explore the demo <IconArrowRight size={17} /></a></div>
         <div className="closing-side"><span className="closing-icon"><IconCar size={34} /></span><b>Car Guy Portal</b><small>Built around the way independent dealers work.</small><a href="#packages">Compare the three packages <IconArrowUpRight size={15} /></a></div>
       </section>
     </main>
@@ -243,7 +247,7 @@ function MarketingSite() {
 
 function SiteFooter() {
   return <footer className="site-footer">
-    <div className="footer-top"><Brand /><p>Less juggling. More selling.</p><a className="footer-demo" href="/demo">Open the demo <IconArrowUpRight size={15} /></a></div>
+    <div className="footer-top"><Brand /><p>Less juggling. More selling.</p><a className="footer-demo" href={appPath('demo')}>Open the demo <IconArrowUpRight size={15} /></a></div>
     <div className="footer-bottom"><span>© 2026 Car Guy Portal · Portfolio concept</span><span>Sample dealership data · No live accounts or billing</span><a href="https://github.com/ohgeeceee" target="_blank" rel="noreferrer">Built by ohgeeceee <IconExternalLink size={13} /></a></div>
   </footer>;
 }
@@ -272,7 +276,7 @@ function DashboardSidebar({ admin, active, onNavigate }) {
     <p className="side-label">WORKSPACE</p>
     <nav>{links.map(({ key, label, icon: LinkIcon, count }) => <button key={key} className={active === key ? 'side-active' : ''} onClick={() => onNavigate(key)}><LinkIcon size={18} /><span>{label}</span>{count && <i>{count}</i>}</button>)}</nav>
     <div className="sidebar-bottom">
-      <a href="/" className="side-back"><IconArrowDownRight size={16} /> Back to website</a>
+      <a href={appPath()} className="side-back"><IconArrowDownRight size={16} /> Back to website</a>
       <button onClick={() => onNavigate('settings')}><IconSettings size={18} /><span>Settings</span></button>
       <div className="user-chip"><span className="user-avatar">JD</span><span><b>Jordan Davis</b><small>{admin ? 'Store owner' : 'Sales manager'}</small></span><IconDotsIcon /></div>
     </div>
@@ -290,7 +294,7 @@ function DashboardTopbar({ admin, setAdmin, onOpenLead, notice, setNotice }) {
       <button className="icon-button notification-button" aria-label="Notifications" onClick={() => setNotice(!notice)}><IconBell size={18} /><i /></button>
       <span className="top-avatar">JD</span>
       {notice && <div className="notification-popover"><b>You’re all caught up</b><span>No new alerts in this sample workspace.</span></div>}
-      <button className="mobile-back" onClick={() => { window.location.href = '/'; }} aria-label="Back to marketing website"><IconWorldWww size={18} /></button>
+      <button className="mobile-back" onClick={() => { window.location.href = appPath(); }} aria-label="Back to marketing website"><IconWorldWww size={18} /></button>
       <button className="new-lead-top" onClick={onOpenLead}><IconPlus size={16} /> New lead</button>
     </div>
   </div>;
@@ -456,7 +460,9 @@ function DemoWorkspace({ adminDefault = false }) {
 }
 
 export function App() {
-  const path = window.location.pathname;
+  const path = window.location.pathname.startsWith(BASE_PATH)
+    ? `/${window.location.pathname.slice(BASE_PATH.length)}`
+    : window.location.pathname;
   if (path.startsWith('/demo')) return <DemoWorkspace />;
   if (path.startsWith('/portal')) return <DemoWorkspace adminDefault />;
   return <MarketingSite />;
