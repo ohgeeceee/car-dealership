@@ -29,6 +29,8 @@ jobs:
         run: npm test
       - name: Build static Pages site
         run: npm run build:pages
+      - name: Test Sites package
+        run: npm run test:sites
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
