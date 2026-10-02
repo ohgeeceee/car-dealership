@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import {
   IconActivity, IconArrowDown, IconArrowDownRight, IconArrowRight, IconArrowUpRight,
   IconBell, IconBuildingStore, IconCalendarEvent, IconCar, IconChartBar,
-  IconCheck, IconChevronDown, IconChevronRight, IconClock, IconCreditCard,
+  IconCheck, IconChevronDown, IconChevronRight, IconClock, IconCreditCard, IconShieldCheck,
   IconExternalLink, IconFilter, IconLayoutDashboard, IconListDetails,
   IconMail, IconMenu2, IconMessageCircle, IconPlus, IconSearch,
   IconSettings, IconSparkles, IconUsersGroup, IconWorldWww, IconX, IconDotsVertical,
 } from '@tabler/icons-react';
+import { answerHRQuestion, buildSalesAssist } from './agents.js';
 
 const BASE_PATH = import.meta.env.BASE_URL;
 const appPath = (path = '') => path ? `${BASE_PATH}${path.replace(/^\/+/, '')}/` : BASE_PATH;
@@ -268,6 +269,7 @@ function DashboardSidebar({ admin, active, onNavigate }) {
     { key: 'inventory', label: 'Inventory', icon: IconCar },
     { key: 'agenda', label: admin ? 'Pending deals' : 'Today’s agenda', icon: IconCalendarEvent, count: admin ? '3' : '4' },
     { key: 'followups', label: 'Follow-ups', icon: IconMessageCircle },
+    { key: 'agents', label: 'AI agents', icon: IconSparkles, count: '2' },
     ...(admin ? [{ key: 'reports', label: 'Reports', icon: IconChartBar }] : []),
   ];
   return <aside className="dash-sidebar">
@@ -300,7 +302,7 @@ function DashboardTopbar({ admin, setAdmin, onOpenLead, notice, setNotice }) {
   </div>;
 }
 
-function AdminOverview() {
+function AdminOverview({ onOpenAgents }) {
   const aging = [
     { label: '0–30 days', value: 18, color: 'age-green' },
     { label: '31–60 days', value: 14, color: 'age-gold' },
@@ -320,6 +322,14 @@ function AdminOverview() {
       <Metric label="Active leads" value="24" note="8 need a next step" icon={IconUsersGroup} tone="violet" trend={false} />
       <Metric label="In inventory" value="48" note="3 units aging 90+ days" icon={IconBuildingStore} tone="green" trend={false} />
     </div>
+    <section className="ai-featured-panel" aria-labelledby="ai-featured-title">
+      <div className="ai-featured-heading"><div><p className="eyebrow eyebrow-dark"><span /> BUILT FOR YOUR STORE</p><h2 id="ai-featured-title">Your new teammates.</h2><p>Purpose-built agents for the showroom and the people behind it.</p></div><span className="agent-status"><i /> TWO AGENTS READY</span></div>
+      <div className="ai-featured-grid">
+        <button className="ai-feature-card" onClick={() => onOpenAgents('sales')}><span className="ai-feature-icon ai-feature-sales"><IconUsersGroup size={19} /></span><span className="ai-feature-copy"><b>Sales Agent</b><small>Qualify leads, find the right vehicle, prepare the next response.</small></span><IconArrowUpRight size={17} /></button>
+        <button className="ai-feature-card" onClick={() => onOpenAgents('hr')}><span className="ai-feature-icon ai-feature-hr"><IconBuildingStore size={19} /></span><span className="ai-feature-copy"><b>HR Agent</b><small>Help your team with hiring, onboarding, and dealership policies.</small></span><IconArrowUpRight size={17} /></button>
+      </div>
+      <p className="ai-featured-note"><IconShieldCheck size={14} /> Suggestions only. A person approves customer contact and all employment decisions.</p>
+    </section>
     <div className="admin-panels">
       <section className="dashboard-panel inventory-pulse">
         <div className="panel-heading"><div><h2>Inventory pulse</h2><p>48 vehicles on the lot</p></div><button className="subtle-link">View inventory <IconArrowUpRight size={14} /></button></div>
@@ -398,10 +408,119 @@ function FollowupsView({ leads }) {
   </>;
 }
 
-function ReportsView() {
+const agentPrompts = {
+  sales: [
+    'Match a family SUV under $18k',
+    'A shopper wants a Silverado test drive tomorrow',
+    'Draft a helpful first reply for a new lead',
+  ],
+  hr: [
+    'Show me the new-hire onboarding checklist',
+    'How should I route a time-off request?',
+    'Draft fair interview questions for a sales role',
+  ],
+};
+
+const onboardingSeed = [
+  { title: 'Confirm role, start date, and manager', done: true },
+  { title: 'Prepare approved access and paperwork', done: false },
+  { title: 'Review lot safety and customer handoffs', done: false },
+  { title: 'Assign a trainer and week-one check-in', done: false },
+];
+
+function AIAgentsView({ selectedAgent, setSelectedAgent, onAddLead }) {
+  const salesSelected = selectedAgent === 'sales';
+  return <>
+    <div className="dashboard-heading"><div><p className="eyebrow eyebrow-dark"><span /> DEALER PORTAL / AI TEAM</p><h1>Good people. Helpful agents.</h1><p>Focused assistants for customer conversations and the team that serves them.</p></div><span className="sample-badge agent-preview-badge">PREVIEW MODE</span></div>
+    <div className="agent-selector" aria-label="Choose a dealership AI agent">
+      <button aria-pressed={salesSelected} className={salesSelected ? 'agent-tab agent-tab-active' : 'agent-tab'} onClick={() => setSelectedAgent('sales')}><span className="agent-tab-icon"><IconUsersGroup size={18} /></span><span><b>Sales Agent</b><small>Leads · inventory · next steps</small></span><span className="agent-ready"><i /> READY</span></button>
+      <button aria-pressed={!salesSelected} className={!salesSelected ? 'agent-tab agent-tab-active' : 'agent-tab'} onClick={() => setSelectedAgent('hr')}><span className="agent-tab-icon agent-tab-hr"><IconBuildingStore size={18} /></span><span><b>HR Agent</b><small>People · policies · onboarding</small></span><span className="agent-ready"><i /> READY</span></button>
+    </div>
+    <AgentConsole key={selectedAgent} agent={selectedAgent} onAddLead={onAddLead} />
+  </>;
+}
+
+function AgentConsole({ agent, onAddLead }) {
+  const isSales = agent === 'sales';
+  const [input, setInput] = useState('');
+  const [recommendation, setRecommendation] = useState(null);
+  const [leadAdded, setLeadAdded] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [checklist, setChecklist] = useState(onboardingSeed);
+  const [messages, setMessages] = useState([{
+    role: 'agent',
+    text: isSales
+      ? 'I can help your team understand a new inquiry, find a vehicle in the sample lot, and prepare a reply for a person to review. What came in?'
+      : 'I can help teammates navigate the sample handbook, build an onboarding checklist, or prepare consistent hiring materials. What does your team need?',
+    source: isSales ? 'Sales playbook · sample inventory only' : 'People playbook · sample handbook only',
+  }]);
+
+  const sendMessage = (event, prompt = input) => {
+    event?.preventDefault();
+    const question = prompt.trim();
+    if (!question) return;
+    setInput('');
+    setLeadAdded(false);
+    if (isSales) {
+      const result = buildSalesAssist(question, inventory);
+      setRecommendation(result);
+      setMessages((current) => [...current,
+        { role: 'you', text: question },
+        { role: 'agent', text: result.summary, source: 'Matched against sample inventory · human review before customer contact' },
+      ]);
+    } else {
+      const result = answerHRQuestion(question);
+      setShowChecklist(result.checklist);
+      setMessages((current) => [...current,
+        { role: 'you', text: question },
+        { role: 'agent', text: result.answer, source: result.source },
+      ]);
+    }
+  };
+
+  const useDraft = () => {
+    if (recommendation?.responseDraft) setInput(recommendation.responseDraft);
+  };
+
+  return <div className="agent-workspace-grid">
+    <aside className="agent-context-panel">
+      {isSales ? <>
+        <div className="agent-context-heading"><span className="agent-context-icon"><IconCar size={18} /></span><div><small>CONNECTED TOOL</small><b>Sample inventory</b></div><span className="agent-online-dot" /></div>
+        {recommendation?.matches?.length ? <>
+          <div className="agent-match-heading"><span>Recommended matches</span><b>{recommendation.matches.length}</b></div>
+          {recommendation.matches.map((vehicle, index) => <article className={`agent-vehicle-match ${index === 0 ? 'agent-vehicle-best' : ''}`} key={vehicle.id}>
+            <img src={vehicle.photo} alt="" />
+            <span><b>{vehicle.name}</b><small>{vehicle.badge} · {vehicle.mileage}</small></span>
+            <strong>${vehicle.price.toLocaleString()}</strong>
+          </article>)}
+          {recommendation.budget && <p className="agent-context-footnote">Budget signal: up to ${recommendation.budget.toLocaleString()} · sample listings only</p>}
+          <button className="agent-secondary-action" onClick={useDraft}><IconMail size={15} /> Review reply draft</button>
+          <button className="agent-primary-action" onClick={() => { onAddLead(recommendation.matches[0]); setLeadAdded(true); }} disabled={leadAdded}>{leadAdded ? <><IconCheck size={15} /> Added to sample pipeline</> : <><IconPlus size={15} /> Add sample lead to pipeline</>}</button>
+        </> : <div className="agent-empty-context"><IconSparkles size={19} /><b>Let the agent find a fit.</b><span>Describe a shopper’s vehicle needs, budget, or visit plans. It will match the sample lot and prepare a draft for review.</span><small>{inventory.length} sample vehicles · local-only mode</small></div>}
+        <div className="agent-boundary"><IconShieldCheck size={15} /><span>No messages are sent and no appointments are booked automatically.</span></div>
+      </> : <>
+        <div className="agent-context-heading"><span className="agent-context-icon agent-context-hr"><IconUsersGroup size={18} /></span><div><small>INTERNAL TEAM TOOL</small><b>Onboarding checklist</b></div><span className="agent-online-dot" /></div>
+        {showChecklist ? <div className="onboarding-list">{checklist.map((task, index) => <label className={`onboarding-task ${task.done ? 'onboarding-task-done' : ''}`} key={task.title}><input type="checkbox" checked={task.done} onChange={() => setChecklist((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, done: !item.done } : item))} /><span className="task-check-box">{task.done && <IconCheck size={12} />}</span><span>{task.title}</span></label>)}<small className="agent-context-footnote">{checklist.filter((task) => task.done).length} of {checklist.length} steps complete · sample checklist</small></div> : <div className="agent-empty-context"><IconUsersGroup size={19} /><b>Give every teammate a good start.</b><span>Build an onboarding sequence, find a sample handbook topic, or draft structured interview materials.</span><small>No employee records connected</small></div>}
+        <div className="agent-boundary"><IconShieldCheck size={15} /><span>People decisions stay with your manager. The agent never ranks or rejects applicants.</span></div>
+      </>}
+    </aside>
+
+    <section className="agent-chat-panel" aria-label={`${isSales ? 'Sales' : 'HR'} Agent conversation`}>
+      <div className="agent-chat-header"><span className={`agent-chat-avatar ${isSales ? '' : 'agent-chat-avatar-hr'}`}>{isSales ? <IconSparkles size={17} /> : <IconUsersGroup size={17} />}</span><span><b>{isSales ? 'Sales Agent' : 'HR Agent'}</b><small>{isSales ? 'Your showroom copilot' : 'Your people-ops copilot'}</small></span><span className="agent-mode-tag">LOCAL DEMO</span></div>
+      <div className="agent-transcript" aria-live="polite">
+        {messages.map((message, index) => <article className={`agent-message agent-message-${message.role}`} key={`${message.role}-${index}`}><span className="agent-message-avatar">{message.role === 'you' ? 'JD' : isSales ? 'SA' : 'HR'}</span><div><b>{message.role === 'you' ? 'You' : isSales ? 'Sales Agent' : 'HR Agent'}</b><p>{message.text}</p>{message.source && <small>{message.source}</small>}</div></article>)}
+      </div>
+      <div className="agent-prompt-area"><span>TRY ASKING</span><div>{agentPrompts[agent].map((prompt) => <button key={prompt} onClick={(event) => sendMessage(event, prompt)}>{prompt}</button>)}</div></div>
+      <form className="agent-composer" onSubmit={sendMessage}><label className="agent-sr-only" htmlFor={`agent-input-${agent}`}>Message the {isSales ? 'Sales' : 'HR'} Agent</label><textarea id={`agent-input-${agent}`} rows="2" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) sendMessage(event); }} placeholder={isSales ? 'Describe a shopper or ask for a vehicle match…' : 'Ask about onboarding, the handbook, or hiring…'} /><button type="submit" aria-label="Send message" disabled={!input.trim()}><IconArrowUpRight size={18} /></button></form>
+      <p className="agent-demo-disclosure">Interactive product preview. Responses use local demo logic, not a connected AI model or live dealership data.</p>
+    </section>
+  </div>;
+}
+
+function ReportsView({ onOpenAgents }) {
   return <>
     <div className="dashboard-heading"><div><p className="eyebrow eyebrow-dark"><span /> DEALER PORTAL / REPORTS</p><h1>See the whole store.</h1><p>Sample performance overview for Summit Motor Co.</p></div><button className="date-range"><IconCalendarEvent size={16} /> This month <IconChevronDown size={14} /></button></div>
-    <AdminOverview />
+    <AdminOverview onOpenAgents={onOpenAgents} />
   </>;
 }
 
@@ -417,7 +536,8 @@ function NewLeadModal({ onClose, onSave }) {
 
 function DemoWorkspace({ adminDefault = false }) {
   const [admin, setAdmin] = useState(adminDefault);
-  const [active, setActive] = useState('overview');
+  const [active, setActive] = useState(() => new URLSearchParams(window.location.search).get('view') === 'agents' ? 'agents' : 'overview');
+  const [selectedAgent, setSelectedAgent] = useState(() => new URLSearchParams(window.location.search).get('agent') === 'hr' ? 'hr' : 'sales');
   const [leads, setLeads] = useState(initialLeads);
   const [tasks, setTasks] = useState(tasksSeed);
   const [query, setQuery] = useState('');
@@ -431,6 +551,18 @@ function DemoWorkspace({ adminDefault = false }) {
     setLeads((current) => [{ id: Math.max(...current.map((lead) => lead.id), 0) + 1, initials, stage: 'New Inquiry', age: 'just now', value: 0, tint: 'amber', ...newLead }, ...current]);
     setActive('leads'); setModalOpen(false);
   };
+  const addAgentLead = (vehicle) => {
+    setLeads((current) => [{
+      id: Math.max(...current.map((lead) => lead.id), 0) + 1,
+      name: 'Portal Demo Shopper', initials: 'PD', vehicle: vehicle.name,
+      source: 'AI Agent', stage: 'New Inquiry', age: 'just now',
+      value: vehicle.price, tint: 'violet',
+    }, ...current]);
+  };
+  const openAgents = (agent = 'sales') => {
+    setSelectedAgent(agent);
+    setActive('agents');
+  };
 
   return <div className="workspace-shell">
     <DashboardSidebar admin={admin} active={active} onNavigate={setActive} />
@@ -438,7 +570,7 @@ function DemoWorkspace({ adminDefault = false }) {
       <DashboardTopbar admin={admin} setAdmin={setAdmin} onOpenLead={() => setModalOpen(true)} notice={notice} setNotice={setNotice} />
       <main className="workspace-content">
         {active !== 'overview' && <div className="global-search-row"><label className="global-search"><IconSearch size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the workspace…" /></label><button className="help-link"><IconMail size={15} /> Help</button></div>}
-        {active === 'overview' && admin && <AdminOverview />}
+        {active === 'overview' && admin && <AdminOverview onOpenAgents={openAgents} />}
         {active === 'overview' && !admin && <>
           <div className="dashboard-heading"><div><p className="eyebrow eyebrow-dark"><span /> YOUR SALES FLOOR</p><h1>Let’s move the next one.</h1><p>Here’s where your day stands at Summit Motor Co.</p></div><button className="button button-dark" onClick={() => setModalOpen(true)}><IconPlus size={16} /> Add a lead</button></div>
           <div className="metrics-grid sales-metrics"><Metric label="Open leads" value="24" note="12% vs last month" icon={IconUsersGroup} /><Metric label="Appointments" value="08" note="On today’s agenda" icon={IconCalendarEvent} tone="blue" trend={false} /><Metric label="Test drives" value="05" note="3 still to confirm" icon={IconCar} tone="green" trend={false} /><Metric label="Follow-ups due" value="04" note="Don’t leave them hanging" icon={IconClock} tone="rose" trend={false} /></div>
@@ -450,7 +582,8 @@ function DemoWorkspace({ adminDefault = false }) {
         {active === 'inventory' && <InventoryView />}
         {active === 'agenda' && <AgendaView tasks={tasks} setTasks={setTasks} admin={admin} />}
         {active === 'followups' && <FollowupsView leads={visibleLeads} />}
-        {active === 'reports' && <ReportsView />}
+        {active === 'agents' && <AIAgentsView selectedAgent={selectedAgent} setSelectedAgent={setSelectedAgent} onAddLead={addAgentLead} />}
+        {active === 'reports' && <ReportsView onOpenAgents={openAgents} />}
         {active === 'settings' && <section className="settings-view"><p className="eyebrow eyebrow-dark"><span /> WORKSPACE SETTINGS</p><h1>Make it yours.</h1><p>This is a preview of the dealer settings area. Account, team, and website controls are illustrative in this demo.</p><div className="settings-option"><span><IconBuildingStore /><b>Store profile</b></span><small>Summit Motor Co. · Great Falls, Montana</small><IconChevronRight /></div><div className="settings-option"><span><IconUsersGroup /><b>Team &amp; permissions</b></span><small>3 sample team members</small><IconChevronRight /></div><div className="settings-option"><span><IconWorldWww /><b>Dealer website</b></span><small>summitmotors.demo</small><IconChevronRight /></div></section>}
       </main>
       <footer className="workspace-footer"><span>Car Guy Portal · Interactive portfolio demo</span><span>Sample data only · No account, API, or billing connected</span></footer>
